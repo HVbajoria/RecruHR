@@ -12,11 +12,12 @@ import { generateInterviewKit, GenerateInterviewKitOutput } from '@/ai/flows/gen
 import { useToast } from "@/hooks/use-toast"
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Checkbox } from '@/components/ui/checkbox';
+import { randomUUID } from 'crypto';
 
 // Helper component to render the model answer with special handling for code blocks
 const ModelAnswer = ({ answer, questionId }: { answer: string; questionId: string }) => {
     // Split the answer by the code block delimiter to separate code from text
-    const parts = answer.split(/```(?:[a-z]*)?\n/);
+    const parts = answer.split(/```(?:[a-z]*)?/);
 
     return (
         <div className="space-y-4">
@@ -44,7 +45,6 @@ const ModelAnswer = ({ answer, questionId }: { answer: string; questionId: strin
                     if (!textContent) return null;
 
                     const bullets = textContent.split('\n').map(b => b.trim()).filter(b => b.startsWith('-'));
-
                     if (bullets.length === 0 && textContent.length > 0) {
                         // Handle text that isn't a bulleted list
                         const pointId = `${questionId}-text-${index}`;
@@ -138,12 +138,57 @@ export default function Home() {
             resumeFileName = resumeFile.name;
         }
 
-        const kit = await generateInterviewKit({ 
+        let kit = await generateInterviewKit({ 
             jobDescription, 
             unstopProfileLink,
             candidateResumeDataUri: resumeDataUri,
             candidateResumeFileName: resumeFileName,
         });
+
+        // Double check and adjust the number of questions
+        if (kit.questions.length !== 30) {
+            if (kit.questions.length > 30) {
+                kit.questions = kit.questions.slice(0, 30);
+                toast({
+                    title: "Adjusted Question Count",
+                    description: "Trimmed extra questions to meet the requirement of 30.",
+                    variant: "default",
+                });
+            } else {
+                // This case should ideally not happen if the AI follows the prompt, but adding for robustness
+                toast({
+                    title: "Insufficient Questions Generated",
+                    description: `Expected 30 questions but received ${kit.questions.length}. Attempting to generate more questions and merge.`,
+                    variant: "default",
+                });
+
+                const neededQuestions = 30 - kit.questions.length;
+                // NOTE: Generating additional questions like this might lead to duplicates or slightly off-topic questions
+                // A better approach might involve a more sophisticated AI call specifically asking for 'N' more questions covering certain topics.
+                // For simplicity and demonstration, we'll make another call with the same prompt, hoping for diverse results.
+                const additionalKit = await generateInterviewKit({ 
+                    jobDescription, 
+                    unstopProfileLink,
+                    candidateResumeDataUri: resumeDataUri,
+                    candidateResumeFileName: resumeFileName,
+                });
+
+                // Merge and slice to ensure exactly 30
+                kit.questions = [...kit.questions, ...additionalKit.questions].slice(0, 30);
+                 toast({
+                    title: "Merged and Adjusted Question Count",
+                    description: `Merged with additional questions and adjusted to exactly 30.`,  // Refined message
+                    variant: "default",
+                });
+            }
+             // Ensure all questions have an ID after potential merging/slicing
+             kit.questions = kit.questions.map(q => ({
+                id: q.id || randomUUID(), // Assign a new ID if missing
+                question: q.question,
+                modelAnswer: q.modelAnswer,
+            }));
+        }
+
         setInterviewKit(kit);
     } catch (error) {
         console.error(error);
