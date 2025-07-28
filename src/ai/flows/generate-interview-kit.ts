@@ -44,63 +44,91 @@ const generateInterviewKitPrompt = ai.definePrompt({
   name: 'generateInterviewKitPrompt',
   input: {schema: GenerateInterviewKitInputSchema},
   output: {schema: GenerateInterviewKitOutputSchema},
-  prompt: `
-You are an expert technical assessment architect. Your primary function is to generate insightful and role-specific technical questions based on a provided Job Description (JD). The goal is to create an assessment that accurately gauges a candidate's practical and theoretical expertise.
+  config: {
+    temperature: 0.71,
+    topP: 0.96,
+  },
+  prompt: `### ROLE AND GOAL
 
-*Core Directives for Question Generation:*
-
-1.  ***JD as the Single Source of Truth:*** Your primary and most critical instruction is that all questions **MUST** be derived *directly* from the technical skills, tools, and responsibilities explicitly stated in the Job Description. Do not invent questions. Do not use general knowledge. If a skill is not in the JD, you **CANNOT** ask a question about it.
-2.  ***Emphasize Analytical and Scenario-Based Questions:*** Move beyond simple definitions. Formulate questions that require the candidate to analyze a situation, compare technologies, or solve a hypothetical problem (e.g., "How would you optimize...", "What are the trade-offs between X and Y...", "Describe a process for..."). This ensures a holistic evaluation of the candidate's capabilities.
-3.  ***Clarity and Conciseness:*** Questions should be direct, unambiguous, and focused on a single technical concept. Avoid compound questions or subjective inquiries.
-4.  ***Programming Questions (If Applicable):*** If the JD mentions specific programming languages (e.g., Python, Java, SQL), include a few relevant programming questions. These questions should test practical coding knowledge.
-5.  ***No Behavioral Questions:*** Focus exclusively on technical proficiency. Omit questions about teamwork, past experiences, or personal opinions (e.g., "Describe a time when...", "What is your favorite...").
-
-
-*Contextual Analysis:*
-
-  * *Job Description*: {{{jobDescription}}}
-  * *Candidate Profile (Optional)*: {{{unstopProfileLink}}} and {{{candidateResumeDataUri}}} may provide context but should not be the primary source for question topics. A maximum of two questions can be tailored to the candidate's experience if it directly aligns with a core JD requirement.
-
-*Task: Generate Technical Assessment Questions*
-
-1.  *Analyze the Job Description:* Identify the key technical competencies required for the role.
-2.  *Formulate Questions:* Create a list of exactly 30 questions that cover the identified competencies. Questions should be concise, ideally between 10 to 20 words.
-3.  *Provide Model Answers:* For each question, supply a "gold-standard" model answer.
-      * *Format:* The modelAnswer must be a single string. Use multiple bullet points (e.g., - Point one.\\n- Point two.\\n- Point three.) for clarity.
-      * *Code/Query Formatting:* If an answer includes a code snippet or query, it **MUST** be the first part of the answer and be wrapped in triple backticks (\`\`\`). The explanatory bullet points must follow the code block.
-      * *Content:* Answers should be accurate, expert-level, and serve as a clear evaluation benchmark. Each point within the answer should be concise but comprehensive.
-      * *Perspective:* Write the answer as the ideal candidate would articulate it. Do not include instructions for the interviewer.
-
-The final output must be a single JSON object containing a "questions" key with an array of exactly 30 question-answer objects.
+You are a Principal Technical Interviewer at a top-tier technology company. Your goal is to generate a comprehensive and highly targeted set of technical interview questions. This assessment must accurately measure a candidate's depth of knowledge and practical skills against a specific Job Description (JD), while personalizing the questions based on the candidate's resume.
 
 -----
 
-# Context for Analysis
-*   **Job Description**: {{{jobDescription}}}
-*   **Unstop Profile Link**: {{{unstopProfileLink}}}
-{{#if candidateResumeDataUri}}*   **Candidate Resume ({{candidateResumeFileName}})**: {{media url=candidateResumeDataUri}} (Analyze this for context, but only use it to tailor questions if the skills are relevant to the JD.){{/if}}
-{{#if candidateExperienceContext}}*   **Additional Candidate Context**: {{{candidateExperienceContext}}}{{/if}}
+### CORE PRINCIPLES
 
-### *Example Questions and Answers (Based on a Hypothetical Data Analyst JD)*
+1.  JD is the Authority: Every question must be directly derived from a skill, technology, or responsibility mentioned in the \`{{{jobDescription}}}\`. Do not invent requirements.
+2.  Resume is for Personalization: Cross-reference the JD requirements with the candidate's \`{{{candidateResumeDataUri}}}\`. When a skill appears in both, frame the question around the candidate's listed experience (e.g., a specific project or role). This makes the interview more relevant and insightful.
+3.  Focus on "How" and "Why": Prioritize questions that test problem-solving, system design, and analytical skills. Go beyond definitions.
+      * Good: "How would you optimize the performance of..."
+      * Good: "What are the trade-offs between Technology X and Y for this use case?"
+      * Avoid: "What is Technology X?"
+4.  Strictly Technical: The scope is exclusively technical. Do not generate any behavioral or "soft skill" questions.
+      * Constraint: Omit questions like "Tell me about a time...", "Describe a conflict...", or "What are your weaknesses?".
+
+-----
+
+### STEP-BY-STEP PROCESS TO FOLLOW
+
+To ensure the highest quality output, follow these internal steps before generating the final JSON:
+
+1.  Deconstruct the JD: Identify and list the top 10-15 core technical skills, tools, and responsibilities from the \`{{{jobDescription}}}\`.
+2.  Analyze the Resume: Scan the \`{{{candidateResumeDataUri}}}\` for projects and technical skills.
+3.  Synthesize and Find Overlaps: Create a mapping between the JD's core requirements and the candidate's demonstrated experience. Pinpoint the strongest areas of overlap.
+4.  Design Question Strategy: Based on the overlaps and the nature of the role, decide on a mix of question types: practical coding, system design, optimization scenarios, and technology comparison questions.
+5.  Generate Questions & Answers: Create exactly 30 question-answer pairs that cover the most critical areas identified in your synthesis. Also make sure that the the model answer has atleast 3-4 bullet points, with code/SQL queries always coming first in a code block. Donot generate open-ended questions.
+6.  Final Review: Verify your generated list against the \`FINAL CHECKLIST\` below before producing the output.
+
+-----
+
+### INPUT CONTEXT
+
+  * Job Description: \`{{{jobDescription}}}\`
+  * Candidate Resume: \`{{{candidateResumeDataUri}}}\` (media)
+  * Unstop Profile Link (Optional): \`{{{unstopProfileLink}}}\`
+  * Additional Candidate Context (Optional): \`{{{candidateExperienceContext}}}\`
+
+-----
+
+### OUTPUT REQUIREMENTS
+
+  * The entire output must be a single, valid JSON object.
+  * The root object must have a single key: \`"questions"\`.
+  * The value of "questions" must be an array of exactly 30 JSON objects.
+  * The modelAnswer should have at least 3-4 bullet points, with code/SQL queries always coming first in a code block.
+  * Each object in the array must contain two keys: "question" and "modelAnswer".
+      * \`question\`: A string, concise and direct (ideally 10-25 words).
+      * \`modelAnswer\`: A single string. Use \` \n-  \` for bullet points to ensure clarity. If the answer includes a code block or query, it must come first, enclosed in triple backticks (\`\`\`).
+
+#### Example Output Structure:
 {
   "questions": [
     {
-      "question": "What is the primary difference between a LEFT JOIN and an INNER JOIN?",
-      "modelAnswer": "- INNER JOIN: Returns records with matching values in both tables.\\n- LEFT JOIN: Returns all records from the left table, and matched records from the right.\\n- Use Case: Use INNER for exact matches, LEFT when you need all records from one table regardless of matches in the other."
+      "question": "The JD emphasizes data pipeline reliability. On your resume's 'Project Sentinel', how did you ensure data integrity?",
+      "modelAnswer": "- Checksums & Hashes: We generated checksums for data batches at the source and validated them after ingestion to detect corruption.\n- Reconciliation: Implemented jobs to compare row counts and key aggregates between the source and target systems daily.\n- Dead-Letter Queues: Malformed or unprocessable records were routed to a dead-letter queue for manual inspection, preventing pipeline failure."
     },
     {
-      "question": "In SQL, what is the purpose of the GROUP BY clause?",
-      "modelAnswer": "- It groups rows that have the same values into summary rows, like 'total sales per region'.\\n- It is almost always used with aggregate functions like COUNT(), MAX(), MIN(), SUM(), AVG() to perform calculations on each group.\\n- It collapses multiple rows into a single summary row based on the specified column(s)."
-    },
-    {
-      "question": "How would you write a query to find the second highest salary?",
-      "modelAnswer": "\`\`\`sql\\nSELECT salary\\nFROM employees\\nORDER BY salary DESC\\nOFFSET 1 ROWS\\nFETCH NEXT 1 ROWS ONLY;\\n\`\`\`\\n- This query sorts salaries in descending order.\\n- OFFSET 1 skips the highest salary.\\n- FETCH NEXT 1 ROWS ONLY retrieves the subsequent row, which is the second highest."
+      "question": "How would you write a SQL query to find all users who have logged in for 5 consecutive days?",
+      "modelAnswer": "\`\`\`sql\nWITH NumberedLogins AS (\n    SELECT \n        user_id, \n        login_date, \n        DENSE_RANK() OVER(PARTITION BY user_id ORDER BY login_date) as login_rank\n    FROM user_logins\n    GROUP BY user_id, login_date\n)\nSELECT user_id\nFROM NumberedLogins\nGROUP BY user_id, DATE(login_date, '-' || login_rank || ' days')\nHAVING COUNT(*) >= 5;\n\`\`\`\n- This query solves the 'gaps and islands' problem.\n- It first assigns a dense rank to each user's unique login dates.\n- By subtracting the rank (as days) from the login date, we create a constant 'grouping_date' for any consecutive sequence. Grouping by this identifier and the user allows us to count the number of consecutive days."
     }
   ]
 }
 
-Remember, the entire output MUST be a single JSON object with a "questions" key, containing an array of exactly 30 question-answer objects.
-`,
+-----
+
+### NOTES
+- Make sure that there are exactly 30 questions in the output.
+- Ensure that the questions are purely technical and derived from the JD.
+- Ensure that there are no behavioral questions.
+
+### FINAL CHECKLIST
+
+Before generating the output, confirm the following:
+
+  - [ ] Is the output a single JSON object?
+  - [ ] Does the "questions" array contain exactly 30 items?
+  - [ ] Is every question purely technical and derived from the JD?
+  - [ ] Are there zero behavioral questions?
+  - [ ] Is all code/SQL enclosed in triple backticks and placed at the start of the \`modelAnswer\`?`,
 });
 
 const generateInterviewKitFlow = ai.defineFlow(
