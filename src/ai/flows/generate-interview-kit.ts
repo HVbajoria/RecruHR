@@ -45,7 +45,7 @@ const generateInterviewKitPrompt = ai.definePrompt({
   input: {schema: GenerateInterviewKitInputSchema},
   output: {schema: GenerateInterviewKitOutputSchema},
   config: {
-    temperature: 0.71,
+    temperature: 0.61,
     topP: 0.96,
   },
   prompt: `### ROLE AND GOAL
